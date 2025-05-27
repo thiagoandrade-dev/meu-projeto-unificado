@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "backend/index.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "backend/index.js"
+    },
+    {
+      "src": "/auth/(.*)",
+      "dest": "backend/index.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend/$1"
+    }
+  ],
+  "env": {
+    "MONGODB_URI": "mongodb+srv://firenze-admin:FireNze2024@cluster0.ggdsrzz.mongodb.net/firenze-db?retryWrites=true&w=majority",
+    "JWT_SECRET": "sua_chave_secreta_complexa_aquio",
+    "VITE_API_URL": "@vite_api_url"
+  }
+}
