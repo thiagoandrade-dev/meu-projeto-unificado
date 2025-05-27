@@ -7,20 +7,33 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Dependências e builds
+node_modules/
+dist/
+dist-ssr/
+.temp/
+.cache/
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
+# Arquivos de ambiente
+.env
+.env.local
+.env.*.local
+
+# Editor/IDE
+.vscode/
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+.DS_Store
 
-.vercel
+# Vercel
+.vercel/
+.next/
+
+# Sistema
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
