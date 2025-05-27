@@ -1,4 +1,5 @@
-import { Link, useLocation } from "react-router-dom";
+
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -8,21 +9,20 @@ import {
   GavelIcon,
   LogOut,
 } from "lucide-react";
+import { useContext } from "react";
+import { AuthContext } from "@/App";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
+import { userService } from "@/services/userService";
 
-const AdminSidebar = ({
-  isMobile,
-  setMobileOpen,
-}: {
-  isMobile?: boolean;
-  setMobileOpen?: (open: boolean) => void;
-}) => {
+const AdminSidebar = ({ isMobile, setMobileOpen }: { isMobile?: boolean; setMobileOpen?: (open: boolean) => void }) => {
   const location = useLocation();
-  const { setUser } = useAuth();
+  const navigate = useNavigate();
+  const { setUser } = useContext(AuthContext);
 
   const handleLogout = () => {
+    userService.logout();
     setUser(null);
+    navigate("/");
   };
 
   const closeMobileMenu = () => {

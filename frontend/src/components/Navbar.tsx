@@ -1,12 +1,13 @@
+
 import { Link } from "react-router-dom";
-import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useContext, useState } from "react";
+import { AuthContext } from "@/App";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user } = useAuth();
+  const { user } = useContext(AuthContext);
 
   return (
     <nav className="bg-white shadow-sm">
@@ -19,7 +20,7 @@ const Navbar = () => {
             </div>
             <span className="text-imobiliaria-azul font-poppins font-bold text-xl">Firenze</span>
           </Link>
-
+          
           {/* Links de navegação para desktop */}
           <div className="hidden md:flex items-center gap-8">
             <Link to="/" className="text-gray-700 hover:text-imobiliaria-azul transition-colors">
@@ -35,7 +36,7 @@ const Navbar = () => {
               Contato
             </Link>
           </div>
-
+          
           {/* Botões */}
           <div className="hidden md:flex items-center gap-4">
             {user ? (
@@ -69,7 +70,7 @@ const Navbar = () => {
               </>
             )}
           </div>
-
+          
           {/* Menu mobile */}
           <div className="md:hidden flex items-center">
             <button
@@ -80,7 +81,7 @@ const Navbar = () => {
             </button>
           </div>
         </div>
-
+        
         {/* Menu mobile dropdown */}
         {isMenuOpen && (
           <div className="md:hidden pt-4 pb-2 animate-fade-in">

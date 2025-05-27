@@ -1,8 +1,8 @@
 
 import axios from 'axios';
 
-// URL base da API
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// URL base da API - configurada para produção e desenvolvimento
+const API_URL = import.meta.env.VITE_API_URL || 'https://seu-backend.vercel.app' || 'http://localhost:5000';
 
 // Criando instância do axios com configurações padrão
 const api = axios.create({
@@ -26,6 +26,19 @@ api.interceptors.request.use(
   }
 );
 
+// Interceptador para tratar respostas e erros
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Interface para imóvel baseada no modelo do backend
 export interface Imovel {
   _id?: string;
@@ -38,8 +51,21 @@ export interface Imovel {
   numVagasGaragem: number;
   tipoVagaGaragem: string;
   preco: number;
-  statusAnuncio: string;
+  statusAnuncio: "Disponível" | "Alugado" | "Manutenção" | "Reservado";
   imagens?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Interface para usuário
+export interface Usuario {
+  _id?: string;
+  nome: string;
+  email: string;
+  tipo: "Administrador" | "Locatário" | "Funcionário";
+  telefone?: string;
+  status: "Ativo" | "Inativo";
+  dataRegistro?: string;
 }
 
 // Serviço de API para imóveis
@@ -104,6 +130,17 @@ export const imoveisService = {
       console.error(`Erro ao deletar imóvel ${id}:`, error);
       throw error;
     }
+  },
+
+  // Seed - criar imóveis de teste
+  seed: async () => {
+    try {
+      const response = await api.post('/api/imoveis/seed');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao executar seed de imóveis:', error);
+      throw error;
+    }
   }
 };
 
@@ -122,6 +159,32 @@ export const authService = {
       return { token, usuario };
     } catch (error) {
       console.error('Erro ao fazer login:', error);
+      throw error;
+    }
+  },
+
+  // Registro
+  register: async (userData: Omit<Usuario, '_id' | 'dataRegistro'>) => {
+    try {
+      const response = await api.post('/auth/register', userData);
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao registrar usuário:', error);
+      throw error;
+    }
+  },
+
+  // Verificar token
+  verifyToken: async (token: string) => {
+    try {
+      const response = await api.get('/auth/verify-token', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao verificar token:', error);
       throw error;
     }
   },

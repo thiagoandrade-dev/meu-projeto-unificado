@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +30,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { userService } from "@/services/userService";
+import { userService, User } from "@/services/userService";
 
 // Schema para validação do formulário
 const userFormSchema = z.object({
@@ -49,9 +48,9 @@ const AdminUsuarios = () => {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<null | any>(null);
+  const [editingUser, setEditingUser] = useState<null | User>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [usuarios, setUsuarios] = useState<any[]>([]);
+  const [usuarios, setUsuarios] = useState<User[]>([]);
   
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -65,7 +64,7 @@ const AdminUsuarios = () => {
     },
   });
 
-  // Carrega os usuários ao iniciar o componente
+  // Carrega os usuários do backend
   useEffect(() => {
     loadUsers();
   }, []);
@@ -73,59 +72,10 @@ const AdminUsuarios = () => {
   const loadUsers = async () => {
     setIsLoading(true);
     try {
-      // Em um ambiente real, essa chamada seria para a API
-      // const response = await userService.getAll();
-      // setUsuarios(response.data);
-      
-      // Usando dados de exemplo por enquanto
-      setUsuarios([
-        {
-          id: 1,
-          nome: "João Silva",
-          email: "joao.silva@exemplo.com",
-          tipo: "Locatário",
-          telefone: "(11) 98765-4321",
-          status: "Ativo",
-          dataRegistro: "15/01/2023"
-        },
-        {
-          id: 2,
-          nome: "Maria Souza",
-          email: "maria.souza@exemplo.com",
-          tipo: "Locatário",
-          telefone: "(11) 91234-5678",
-          status: "Ativo",
-          dataRegistro: "03/03/2023"
-        },
-        {
-          id: 3,
-          nome: "Carlos Ferreira",
-          email: "carlos.ferreira@exemplo.com",
-          tipo: "Administrador",
-          telefone: "(11) 99876-5432",
-          status: "Ativo",
-          dataRegistro: "10/10/2022"
-        },
-        {
-          id: 4,
-          nome: "Ana Oliveira",
-          email: "ana.oliveira@exemplo.com",
-          tipo: "Locatário",
-          telefone: "(11) 95555-4444",
-          status: "Inativo",
-          dataRegistro: "22/05/2023"
-        },
-        {
-          id: 5,
-          nome: "Roberto Santos",
-          email: "roberto.santos@exemplo.com",
-          tipo: "Funcionário",
-          telefone: "(11) 92222-3333",
-          status: "Ativo",
-          dataRegistro: "05/07/2023"
-        }
-      ]);
+      const response = await userService.getAll();
+      setUsuarios(response.data);
     } catch (error) {
+      console.error("Erro ao carregar usuários:", error);
       toast({
         title: "Erro ao carregar usuários",
         description: "Não foi possível obter a lista de usuários",
@@ -145,40 +95,38 @@ const AdminUsuarios = () => {
   );
 
   const openAddDialog = () => {
-    form.reset(); // Limpa o formulário
+    form.reset();
     setEditingUser(null);
     setDialogOpen(true);
   };
 
-  const openEditDialog = (user: any) => {
+  const openEditDialog = (user: User) => {
     setEditingUser(user);
     form.reset({
       nome: user.nome,
       email: user.email,
       tipo: user.tipo,
-      telefone: user.telefone,
+      telefone: user.telefone || "",
       status: user.status,
-      senha: "", // Campo de senha vazio ao editar
+      senha: "",
     });
     setDialogOpen(true);
   };
   
-  const handleStatusChange = async (id: number, newStatus: string) => {
+  const handleStatusChange = async (id: string, newStatus: "Ativo" | "Inativo") => {
     try {
-      // Em um ambiente real, essa chamada seria para a API
-      // await userService.updateStatus(id, newStatus);
+      await userService.updateStatus(id, newStatus);
       
-      // Atualizando localmente para demonstração
-      setUsuarios(usuarios.map(user => 
-        user.id === id ? { ...user, status: newStatus } : user
-      ));
+      // Recarregar lista de usuários
+      await loadUsers();
       
       toast({
         title: "Status alterado",
-        description: `Usuário ID: ${id} agora está ${newStatus}`,
+        description: `Usuário agora está ${newStatus}`,
         duration: 3000,
       });
     } catch (error) {
+      console.error("Erro ao alterar status:", error);
       toast({
         title: "Erro ao alterar status",
         description: "Não foi possível atualizar o status do usuário",
@@ -187,22 +135,22 @@ const AdminUsuarios = () => {
     }
   };
   
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja remover este usuário?")) return;
     
     try {
-      // Em um ambiente real, essa chamada seria para a API
-      // await userService.delete(id);
+      await userService.delete(id);
       
-      // Atualizando localmente para demonstração
-      setUsuarios(usuarios.filter(user => user.id !== id));
+      // Recarregar lista de usuários
+      await loadUsers();
       
       toast({
         title: "Usuário removido",
-        description: `O usuário ID: ${id} foi removido com sucesso`,
+        description: "O usuário foi removido com sucesso",
         duration: 3000,
       });
     } catch (error) {
+      console.error("Erro ao remover usuário:", error);
       toast({
         title: "Erro ao remover",
         description: "Não foi possível remover o usuário",
@@ -215,17 +163,20 @@ const AdminUsuarios = () => {
     setIsLoading(true);
     try {
       if (editingUser) {
-        // Em um ambiente real, essa chamada seria para a API
-        // await userService.update(editingUser.id, data);
+        const updateData: Partial<User> = {
+          nome: data.nome,
+          email: data.email,
+          tipo: data.tipo,
+          telefone: data.telefone,
+          status: data.status,
+        };
         
-        // Atualizando localmente para demonstração
-        setUsuarios(usuarios.map(user => 
-          user.id === editingUser.id ? { 
-            ...user, 
-            ...data,
-            dataRegistro: user.dataRegistro
-          } : user
-        ));
+        // Só inclui senha se foi preenchida
+        if (data.senha && data.senha.trim() !== "") {
+          updateData.senha = data.senha;
+        }
+        
+        await userService.update(String(editingUser._id || editingUser.id || ""), updateData);
         
         toast({
           title: "Usuário atualizado",
@@ -233,17 +184,14 @@ const AdminUsuarios = () => {
           duration: 3000,
         });
       } else {
-        // Em um ambiente real, essa chamada seria para a API
-        // const response = await userService.create(data);
-        
-        // Criando localmente para demonstração
-        const newUser = {
-          id: Math.max(...usuarios.map(u => u.id)) + 1,
-          ...data,
-          dataRegistro: new Date().toLocaleDateString('pt-BR')
-        };
-        
-        setUsuarios([...usuarios, newUser]);
+        await userService.create({
+          nome: data.nome,
+          email: data.email,
+          tipo: data.tipo,
+          telefone: data.telefone,
+          status: data.status,
+          senha: data.senha || "",
+        });
         
         toast({
           title: "Usuário criado",
@@ -252,11 +200,14 @@ const AdminUsuarios = () => {
         });
       }
       
+      // Recarregar lista de usuários
+      await loadUsers();
       setDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Erro ao salvar usuário:", error);
       toast({
         title: editingUser ? "Erro ao atualizar" : "Erro ao cadastrar",
-        description: "Ocorreu um problema ao processar a operação",
+        description: error.response?.data?.erro || "Ocorreu um problema ao processar a operação",
         variant: "destructive",
       });
     } finally {
@@ -306,7 +257,6 @@ const AdminUsuarios = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">ID</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Nome</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Email</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Tipo</th>
@@ -319,8 +269,7 @@ const AdminUsuarios = () => {
                 <tbody>
                   {usuariosFiltrados.length > 0 ? (
                     usuariosFiltrados.map((usuario) => (
-                      <tr key={usuario.id} className="border-b hover:bg-gray-50">
-                        <td className="py-3 px-4">{usuario.id}</td>
+                      <tr key={usuario._id || usuario.id} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-4">{usuario.nome}</td>
                         <td className="py-3 px-4">{usuario.email}</td>
                         <td className="py-3 px-4">
@@ -336,7 +285,7 @@ const AdminUsuarios = () => {
                             {usuario.tipo}
                           </span>
                         </td>
-                        <td className="py-3 px-4">{usuario.telefone}</td>
+                        <td className="py-3 px-4">{usuario.telefone || "-"}</td>
                         <td className="py-3 px-4">
                           <span
                             className={`inline-block py-1 px-2 rounded-full text-xs font-medium ${
@@ -348,7 +297,9 @@ const AdminUsuarios = () => {
                             {usuario.status}
                           </span>
                         </td>
-                        <td className="py-3 px-4">{usuario.dataRegistro}</td>
+                        <td className="py-3 px-4">
+                          {usuario.dataRegistro ? new Date(usuario.dataRegistro).toLocaleDateString('pt-BR') : "-"}
+                        </td>
                         <td className="py-3 px-4">
                           <div className="flex justify-center gap-2">
                             <Button
@@ -361,7 +312,7 @@ const AdminUsuarios = () => {
                             <Button
                               variant="outline"
                               size="icon"
-                              onClick={() => handleDelete(usuario.id)}
+                              onClick={() => handleDelete(String(usuario._id || usuario.id || ""))}
                             >
                               <Trash2 size={16} className="text-red-600" />
                             </Button>
@@ -369,7 +320,7 @@ const AdminUsuarios = () => {
                               <Button
                                 variant="outline"
                                 size="icon"
-                                onClick={() => handleStatusChange(usuario.id, "Inativo")}
+                                onClick={() => handleStatusChange(String(usuario._id || usuario.id || ""), "Inativo")}
                               >
                                 <UserX size={16} className="text-red-600" />
                               </Button>
@@ -377,7 +328,7 @@ const AdminUsuarios = () => {
                               <Button
                                 variant="outline"
                                 size="icon"
-                                onClick={() => handleStatusChange(usuario.id, "Ativo")}
+                                onClick={() => handleStatusChange(String(usuario._id || usuario.id || ""), "Ativo")}
                               >
                                 <UserCheck size={16} className="text-green-600" />
                               </Button>
@@ -388,7 +339,7 @@ const AdminUsuarios = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={8} className="py-4 text-center text-gray-500">
+                      <td colSpan={7} className="py-4 text-center text-gray-500">
                         Nenhum usuário encontrado
                       </td>
                     </tr>
