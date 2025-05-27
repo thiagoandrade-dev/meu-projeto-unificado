@@ -2,7 +2,16 @@
 import axios from 'axios';
 
 // URL base da API - configurada para produção e desenvolvimento
-const API_URL = import.meta.env.VITE_API_URL || 'https://seu-backend.vercel.app' || 'http://localhost:5000';
+const API_URL = (() => {
+  // 1. Prioridade: variável de ambiente
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  
+  // 2. Fallback para produção
+  if (import.meta.env.PROD) return 'https://meu-backend-2eb1.onrender.com';
+  
+  // 3. Fallback para desenvolvimento
+  return 'http://localhost:5000';
+})();
 
 // Criando instância do axios com configurações padrão
 const api = axios.create({

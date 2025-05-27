@@ -1,25 +1,35 @@
+import axios, { 
+  AxiosInstance, 
+  InternalAxiosRequestConfig, 
+  AxiosResponse, 
+  AxiosError,
+  AxiosHeaders 
+} from 'axios';
 
-import axios from 'axios';
+const API_URL = import.meta.env.VITE_API_URL || 'https://meu-backend-2eb1.onrender.com';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-const api = axios.create({
+// Configuração do Axios com tipagem segura
+const api: AxiosInstance = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: new AxiosHeaders({
+    'Content-Type': 'application/json'
+  })
 });
 
-// Interceptador para adicionar o token de autenticação
+// Interceptor de requisição com tipagem correta
 api.interceptors.request.use(
-  (config) => {
+  (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      // Garante que headers é uma instância de AxiosHeaders
+      if (!(config.headers instanceof AxiosHeaders)) {
+        config.headers = new AxiosHeaders(config.headers);
+      }
+      config.headers.set('Authorization', `Bearer ${token}`);
     }
     return config;
   },
-  (error) => {
+  (error: AxiosError) => {
     return Promise.reject(error);
   }
 );
@@ -36,14 +46,14 @@ export interface Notificacao {
   dataEnvio: string;
   dataLeitura?: string;
   link?: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 export interface EmailConfig {
   tipo: "cobranca" | "lembrete" | "vencimento" | "juridico" | "manutencao" | "boas-vindas";
   destinatario: string;
   assunto: string;
-  dados: any;
+  dados: Record<string, unknown>;
 }
 
 export const notificationService = {
@@ -51,7 +61,7 @@ export const notificationService = {
   getAll: async (userId?: string): Promise<Notificacao[]> => {
     try {
       const url = userId ? `/api/notifications?userId=${userId}` : '/api/notifications';
-      const response = await api.get(url);
+      const response = await api.get<Notificacao[]>(url);
       return response.data;
     } catch (error) {
       console.error('Erro ao buscar notificações:', error);
@@ -61,7 +71,7 @@ export const notificationService = {
 
   create: async (notificacao: Omit<Notificacao, '_id' | 'dataEnvio'>): Promise<Notificacao> => {
     try {
-      const response = await api.post('/api/notifications', notificacao);
+      const response = await api.post<Notificacao>('/api/notifications', notificacao);
       return response.data;
     } catch (error) {
       console.error('Erro ao criar notificação:', error);
@@ -96,7 +106,6 @@ export const notificationService = {
         template: getEmailTemplate(config.tipo),
         timestamp: new Date().toISOString()
       };
-
       await api.post('/api/notifications/email', emailData);
     } catch (error) {
       console.error('Erro ao enviar email:', error);
@@ -132,7 +141,7 @@ export const notificationService = {
   },
 
   // Notificações jurídicas
-  enviarNotificacaoJuridica: async (tipo: string, destinatario: string, dados: any): Promise<void> => {
+  enviarNotificacaoJuridica: async (tipo: string, destinatario: string, dados: Record<string, unknown>): Promise<void> => {
     try {
       await api.post('/api/notifications/juridico', {
         tipo,
@@ -148,42 +157,20 @@ export const notificationService = {
   }
 };
 
-// Função auxiliar para determinar o email remetente baseado no tipo
+// Funções auxiliares (mantidas iguais)
 const getEmailRemetente = (tipo: string): string => {
   switch (tipo) {
-    case 'cobranca':
-      return 'financeiro@imobiliariafirenze.com.br';
-    case 'juridico':
-      return 'doc@imobiliariafirenze.com.br';
-    case 'lembrete':
-    case 'vencimento':
-      return 'cadastro@imobiliariafirenze.com.br';
-    case 'manutencao':
-      return 'cadastro@imobiliariafirenze.com.br';
-    case 'boas-vindas':
-      return 'cadastro@imobiliariafirenze.com.br';
-    default:
-      return 'adm@imobiliariafirenze.com.br';
+    case 'cobranca': return 'financeiro@imobiliariafirenze.com.br';
+    case 'juridico': return 'doc@imobiliariafirenze.com.br';
+    default: return 'cadastro@imobiliariafirenze.com.br';
   }
 };
 
-// Função auxiliar para determinar o template do email
 const getEmailTemplate = (tipo: string): string => {
   switch (tipo) {
-    case 'cobranca':
-      return 'template-cobranca';
-    case 'lembrete':
-      return 'template-lembrete';
-    case 'vencimento':
-      return 'template-vencimento';
-    case 'juridico':
-      return 'template-juridico';
-    case 'manutencao':
-      return 'template-manutencao';
-    case 'boas-vindas':
-      return 'template-boas-vindas';
-    default:
-      return 'template-padrao';
+    case 'cobranca': return 'template-cobranca';
+    case 'juridico': return 'template-juridico';
+    default: return 'template-padrao';
   }
 };
 

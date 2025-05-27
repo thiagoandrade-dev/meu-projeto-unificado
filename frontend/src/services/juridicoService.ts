@@ -1,69 +1,90 @@
+import axios, { 
+  AxiosError, 
+  AxiosResponse, 
+  InternalAxiosRequestConfig,
+  AxiosRequestConfig
+} from 'axios';
 
-import axios from 'axios';
+// Configuração robusta de URL base
+const getApiBaseUrl = (): string => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  return import.meta.env.PROD 
+    ? 'https://meu-backend-2eb1.onrender.com' 
+    : 'http://localhost:5000';
+};
 
-// URL base da API
-const API_URL = import.meta.env.VITE_API_URL || 'https://seu-backend.vercel.app' || 'http://localhost:5000';
+const API_URL = getApiBaseUrl();
 
-// Criando instância do axios
+// Configuração centralizada do Axios
 const api = axios.create({
   baseURL: API_URL,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Interceptador para adicionar o token de autenticação
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+// Interceptor de requisição para autenticação
+const requestInterceptor = (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
+  const token = localStorage.getItem('token');
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  return config;
+};
 
-// Interceptador para tratar respostas e erros
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
+// Interceptor de resposta para tratamento de erros
+const responseInterceptor = {
+  success: (response: AxiosResponse) => response,
+  error: (error: AxiosError) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      window.location.href = '/login?session_expired=true';
     }
     return Promise.reject(error);
   }
-);
+};
+
+api.interceptors.request.use(requestInterceptor);
+api.interceptors.response.use(responseInterceptor.success, responseInterceptor.error);
+
+// Tipos de Documentos Jurídicos
+export type DocumentoTipo = "Contrato" | "Adendo" | "Notificação" | "Procuração" | "Distrato" | "Vistoria" | "Outros";
+export type DocumentoStatus = "Ativo" | "Arquivado" | "Pendente";
 
 export interface DocumentoJuridico {
   _id?: string;
   titulo: string;
-  tipo: "Contrato" | "Adendo" | "Notificação" | "Procuração" | "Distrato" | "Vistoria" | "Outros";
+  tipo: DocumentoTipo;
   descricao?: string;
-  arquivo: string; // URL ou path do arquivo
+  arquivo: string;
   tamanho: string;
   formato: string;
   autor: string;
   contratoRelacionado?: string;
   imovelRelacionado?: string;
-  status: "Ativo" | "Arquivado" | "Pendente";
+  status: DocumentoStatus;
   dataCriacao: string;
   dataModificacao?: string;
   tags?: string[];
   observacoes?: string;
 }
 
+// Tipos de Processos Jurídicos
+export type ProcessoTipo = "Despejo" | "Cobrança" | "Danos" | "Distrato" | "Renovação" | "Outros";
+export type ProcessoStatus = "Aberto" | "Em Andamento" | "Concluído" | "Arquivado";
+export type ProcessoPrioridade = "Baixa" | "Média" | "Alta" | "Urgente";
+
 export interface ProcessoJuridico {
   _id?: string;
   numero: string;
-  tipo: "Despejo" | "Cobrança" | "Danos" | "Distrato" | "Renovação" | "Outros";
+  tipo: ProcessoTipo;
   contratoId: string;
-  status: "Aberto" | "Em Andamento" | "Concluído" | "Arquivado";
-  prioridade: "Baixa" | "Média" | "Alta" | "Urgente";
+  status: ProcessoStatus;
+  prioridade: ProcessoPrioridade;
   descricao: string;
   advogadoResponsavel: string;
   dataAbertura: string;
@@ -73,103 +94,127 @@ export interface ProcessoJuridico {
   valor?: number;
 }
 
+interface NotificacaoPayload {
+  tipo: string;
+  destinatario: string;
+  dados: Record<string, unknown>;
+  remetente: string;
+}
+
+// Tratamento centralizado de erros
+function handleApiError(error: unknown, defaultMessage: string): Error {
+  if (axios.isAxiosError(error)) {
+    const serverMessage = error.response?.data?.message;
+    const errorMessage = serverMessage || defaultMessage;
+    console.error(`${errorMessage}:`, error.response?.data || error.message);
+    return new Error(errorMessage);
+  }
+  console.error(defaultMessage, error);
+  return error instanceof Error ? error : new Error(defaultMessage);
+}
+
+// Serviço Jurídico com tipagem forte
 export const juridicoService = {
-  // Documentos
-  getAllDocumentos: async (): Promise<DocumentoJuridico[]> => {
-    try {
-      const response = await api.get('/api/juridico/documentos');
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao listar documentos jurídicos:', error);
-      throw error;
+  documentos: {
+    listar: async (): Promise<DocumentoJuridico[]> => {
+      try {
+        const { data } = await api.get<DocumentoJuridico[]>('/api/juridico/documentos');
+        return data;
+      } catch (error) {
+        throw handleApiError(error, 'Erro ao listar documentos');
+      }
+    },
+
+    criar: async (formData: FormData): Promise<DocumentoJuridico> => {
+      try {
+        const { data } = await api.post<DocumentoJuridico>(
+          '/api/juridico/documentos', 
+          formData, 
+          {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          }
+        );
+        return data;
+      } catch (error) {
+        throw handleApiError(error, 'Erro ao criar documento');
+      }
+    },
+
+    atualizar: async (id: string, documento: Partial<DocumentoJuridico>): Promise<DocumentoJuridico> => {
+      try {
+        const { data } = await api.put<DocumentoJuridico>(
+          `/api/juridico/documentos/${id}`, 
+          documento
+        );
+        return data;
+      } catch (error) {
+        throw handleApiError(error, 'Erro ao atualizar documento');
+      }
+    },
+
+    remover: async (id: string): Promise<void> => {
+      try {
+        await api.delete(`/api/juridico/documentos/${id}`);
+      } catch (error) {
+        throw handleApiError(error, 'Erro ao remover documento');
+      }
     }
   },
 
-  createDocumento: async (documentoData: FormData): Promise<DocumentoJuridico> => {
-    try {
-      const response = await api.post('/api/juridico/documentos', documentoData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao criar documento jurídico:', error);
-      throw error;
+  processos: {
+    listar: async (): Promise<ProcessoJuridico[]> => {
+      try {
+        const { data } = await api.get<ProcessoJuridico[]>('/api/juridico/processos');
+        return data;
+      } catch (error) {
+        throw handleApiError(error, 'Erro ao listar processos');
+      }
+    },
+
+    criar: async (processo: Omit<ProcessoJuridico, '_id' | 'dataAbertura'>): Promise<ProcessoJuridico> => {
+      try {
+        const { data } = await api.post<ProcessoJuridico>('/api/juridico/processos', processo);
+        return data;
+      } catch (error) {
+        throw handleApiError(error, 'Erro ao criar processo');
+      }
+    },
+
+    atualizar: async (id: string, processo: Partial<ProcessoJuridico>): Promise<ProcessoJuridico> => {
+      try {
+        const { data } = await api.put<ProcessoJuridico>(
+          `/api/juridico/processos/${id}`, 
+          processo
+        );
+        return data;
+      } catch (error) {
+        throw handleApiError(error, 'Erro ao atualizar processo');
+      }
+    },
+
+    remover: async (id: string): Promise<void> => {
+      try {
+        await api.delete(`/api/juridico/processos/${id}`);
+      } catch (error) {
+        throw handleApiError(error, 'Erro ao remover processo');
+      }
     }
   },
 
-  updateDocumento: async (id: string, documentoData: Partial<DocumentoJuridico>): Promise<DocumentoJuridico> => {
-    try {
-      const response = await api.put(`/api/juridico/documentos/${id}`, documentoData);
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao atualizar documento jurídico:', error);
-      throw error;
-    }
-  },
-
-  deleteDocumento: async (id: string): Promise<void> => {
-    try {
-      await api.delete(`/api/juridico/documentos/${id}`);
-    } catch (error) {
-      console.error('Erro ao deletar documento jurídico:', error);
-      throw error;
-    }
-  },
-
-  // Processos
-  getAllProcessos: async (): Promise<ProcessoJuridico[]> => {
-    try {
-      const response = await api.get('/api/juridico/processos');
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao listar processos jurídicos:', error);
-      throw error;
-    }
-  },
-
-  createProcesso: async (processoData: Omit<ProcessoJuridico, '_id' | 'dataAbertura'>): Promise<ProcessoJuridico> => {
-    try {
-      const response = await api.post('/api/juridico/processos', processoData);
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao criar processo jurídico:', error);
-      throw error;
-    }
-  },
-
-  updateProcesso: async (id: string, processoData: Partial<ProcessoJuridico>): Promise<ProcessoJuridico> => {
-    try {
-      const response = await api.put(`/api/juridico/processos/${id}`, processoData);
-      return response.data;
-    } catch (error) {
-      console.error('Erro ao atualizar processo jurídico:', error);
-      throw error;
-    }
-  },
-
-  deleteProcesso: async (id: string): Promise<void> => {
-    try {
-      await api.delete(`/api/juridico/processos/${id}`);
-    } catch (error) {
-      console.error('Erro ao deletar processo jurídico:', error);
-      throw error;
-    }
-  },
-
-  // Enviar notificação automática
-  enviarNotificacao: async (tipo: string, destinatario: string, dados: any): Promise<void> => {
-    try {
-      await api.post('/api/juridico/notificacoes', {
+  notificacoes: {
+    enviar: async (tipo: string, destinatario: string, dados: Record<string, unknown>): Promise<void> => {
+      const payload: NotificacaoPayload = {
         tipo,
         destinatario,
         dados,
         remetente: 'doc@imobiliariafirenze.com.br'
-      });
-    } catch (error) {
-      console.error('Erro ao enviar notificação jurídica:', error);
-      throw error;
+      };
+
+      try {
+        await api.post('/api/juridico/notificacoes', payload);
+      } catch (error) {
+        throw handleApiError(error, 'Erro ao enviar notificação');
+      }
     }
   }
 };
