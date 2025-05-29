@@ -6,11 +6,11 @@
   "installCommand": "npm install",
   "devCommand": "npm run dev",
   "env": {
-    "VITE_API_URL": "@vite_api_url"
+    "VITE_API_URL": "https://meu-backend-2eb1.onrender.com"
   },
   "functions": {
     "src/pages/**": {
-      "runtime": "nodejs18.x"
+      "runtime": "@vercel/node@1.15.0"
     }
   },
   "rewrites": [

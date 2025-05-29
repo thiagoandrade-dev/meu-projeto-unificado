@@ -1,17 +1,17 @@
 {
   "version": 2,
-  "builds": [
+  "rewrites": [
     {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
-    }
-  ],
-  "routes": [
+      "source": "/api/(.*)",
+      "destination": "https://meu-backend-2eb1.onrender.com/api/$1"
+    },
     {
-      "src": "/(.*)",
-      "dest": "frontend/dist/$1",
-      "continue": true
+      "source": "/auth/(.*)",
+      "destination": "https://meu-backend-2eb1.onrender.com/auth/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
